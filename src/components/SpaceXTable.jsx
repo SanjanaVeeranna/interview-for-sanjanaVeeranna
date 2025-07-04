@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import DetailCard from './DetailCard';
-import DateRanger from './DateRanger';
+import DateRangePicker from './DateRanger';
 
 function SpaceXTable() {
     const [selectedLaunch, setSelectedLaunch] = useState(null);

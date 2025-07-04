@@ -240,3 +240,5 @@ const DateRangePicker = ({ onDateRangeChange, onClose }) => {
         </div>
     );
 };
+
+export default DateRangePicker;
