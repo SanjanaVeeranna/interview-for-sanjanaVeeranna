@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import DetailCard from './DetailCard';
-import DateRangePicker from './DateRanger';
+import DateRanger from './DateRanger';
 
 function SpaceXTable() {
     const [selectedLaunch, setSelectedLaunch] = useState(null);
@@ -13,26 +13,8 @@ function SpaceXTable() {
     const [launches, setLaunches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [dateRange, setDateRange] = useState({
-        start: null,
-        end: null,
-        label: 'Past 6 months'
-    });
 
     const launchesPerPage = 10;
-
-    // Initialize default date range (Past 6 months)
-    useEffect(() => {
-        const currentDate = new Date();
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(currentDate.getMonth() - 6);
-
-        setDateRange({
-            start: sixMonthsAgo,
-            end: currentDate,
-            label: 'Past 6 months'
-        });
-    }, []);
 
     // Fetch data from API
     useEffect(() => {
@@ -55,12 +37,6 @@ function SpaceXTable() {
 
         fetchLaunches();
     }, []);
-
-    const parseDate = (dateString) => {
-        // Handle different date formats
-        const date = new Date(dateString);
-        return isNaN(date) ? null : date;
-    };
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -85,51 +61,19 @@ function SpaceXTable() {
         setSelectedLaunch(null);
     };
 
-    const handleDateRangeChange = (startDate, endDate, label) => {
-        setDateRange({
-            start: startDate,
-            end: endDate,
-            label: label
-        });
-        setCurrentPage(1); // Reset to first page when date range changes
-    };
-
     const filteredLaunches = launches.filter((launch) => {
-        // First filter by launch status
-        let statusMatch = true;
-        if (selectedLaunchFilter === 'Upcoming Launches') statusMatch = launch.status === 'Upcoming';
-        else if (selectedLaunchFilter === 'Successful Launches') statusMatch = launch.status === 'Success';
-        else if (selectedLaunchFilter === 'Failed Launches') statusMatch = launch.status === 'Failed';
-
-        // Then filter by date range
-        let dateMatch = true;
-        if (dateRange.start && dateRange.end && launch.launch_date) {
-            const launchDate = parseDate(launch.launch_date);
-            if (launchDate) {
-                dateMatch = launchDate >= dateRange.start && launchDate <= dateRange.end;
-            }
-        }
-
-        return statusMatch && dateMatch;
-    });
-
-    // Sort launches by date (most recent first)
-    const sortedLaunches = [...filteredLaunches].sort((a, b) => {
-        const dateA = parseDate(a.launch_date);
-        const dateB = parseDate(b.launch_date);
-
-        if (!dateA && !dateB) return 0;
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-
-        return dateB - dateA; // Most recent first
+        if (selectedLaunchFilter === 'All Launches') return true;
+        if (selectedLaunchFilter === 'Upcoming Launches') return launch.status === 'Upcoming';
+        if (selectedLaunchFilter === 'Successful Launches') return launch.status === 'Success';
+        if (selectedLaunchFilter === 'Failed Launches') return launch.status === 'Failed';
+        return true;
     });
 
     // Pagination logic
-    const totalPages = Math.ceil(sortedLaunches.length / launchesPerPage);
+    const totalPages = Math.ceil(filteredLaunches.length / launchesPerPage);
     const indexOfLastLaunch = currentPage * launchesPerPage;
     const indexOfFirstLaunch = indexOfLastLaunch - launchesPerPage;
-    const currentLaunches = sortedLaunches.slice(indexOfFirstLaunch, indexOfLastLaunch);
+    const currentLaunches = filteredLaunches.slice(indexOfFirstLaunch, indexOfLastLaunch);
 
     const goToPage = (pageNumber) => {
         if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -166,16 +110,13 @@ function SpaceXTable() {
                         onClick={() => setShowDateRange(!showDateRange)}
                     >
                         <span className="text-gray-600">📅</span>
-                        <span className="text-gray-900">{dateRange.label}</span>
+                        <span className="text-gray-900">Past 6 Months</span>
                         <ChevronDown className="w-4 h-4 text-gray-500" />
                     </div>
                     {showDateRange && (
                         <div className="fixed inset-0 backdrop-blur-xs bg-opacity-30 flex items-center justify-center z-50">
                             <div className="relative">
-                                <DateRangePicker
-                                    onDateRangeChange={handleDateRangeChange}
-                                    onClose={() => setShowDateRange(false)}
-                                />
+                                <DateRanger />
                                 <button
                                     onClick={() => setShowDateRange(false)}
                                     className="absolute top-2 right-2 text-gray-600 hover:text-red-600 text-lg font-bold"
@@ -205,7 +146,7 @@ function SpaceXTable() {
                                     onClick={() => {
                                         setSelectedLaunchFilter(option);
                                         setShowLaunchFilter(false);
-                                        setCurrentPage(1);
+                                        setCurrentPage(1); // reset to first page on filter change
                                     }}
                                     className="px-4 py-2 text-md hover:bg-gray-100 cursor-pointer"
                                 >
@@ -215,18 +156,6 @@ function SpaceXTable() {
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* Results Summary */}
-            <div className="px-4 mb-4">
-                <p className="text-sm text-gray-600">
-                    Showing {currentLaunches.length} of {sortedLaunches.length} launches
-                    {dateRange.start && dateRange.end && (
-                        <span className="ml-2">
-                            from {dateRange.start.toLocaleDateString()} to {dateRange.end.toLocaleDateString()}
-                        </span>
-                    )}
-                </p>
             </div>
 
             {/* Table */}
@@ -251,9 +180,7 @@ function SpaceXTable() {
                                 onClick={() => handleRowClick(launch)}
                             >
                                 <td className="py-3 px-4">{launch.id}</td>
-                                <td className="py-3 px-4">
-                                    {launch.launch_date ? new Date(launch.launch_date).toLocaleDateString() : 'N/A'}
-                                </td>
+                                <td className="py-3 px-4">{launch.launch_date}</td>
                                 <td className="py-3 px-4">{launch.launch_site}</td>
                                 <td className="py-3 px-4">{launch.mission_name}</td>
                                 <td className="py-3 px-4">{launch.orbit}</td>
